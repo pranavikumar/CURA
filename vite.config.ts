@@ -4,6 +4,23 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      // Dev: browser calls same-origin /api/* → forwards to chat server (run `npm run api`)
+      "/api": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true,
+        configure(proxy) {
+          proxy.on("error", (err) => {
+            console.error(
+              "[vite] Proxy to chat API failed — is `npm run api` running on 8787?",
+              err.message,
+            );
+          });
+        },
+      },
+    },
+  },
   plugins: [
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them
