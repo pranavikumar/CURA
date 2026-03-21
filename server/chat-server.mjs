@@ -2,7 +2,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { createServer } from "node:http";
-import * as fs from "node:fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.join(__dirname, "..");
@@ -22,10 +21,6 @@ function loadEnvFiles() {
     if (!local.error) console.log(`[chat-server] Loaded ${localPath}`);
   }
 }
-console.log("Looking for .env at:", path.join(PROJECT_ROOT, ".env"));
-console.log("Exists?", fs.existsSync(path.join(PROJECT_ROOT, ".env")));
-console.log("KEY:", process.env.CLAUDE_API_KEY);
-
 /** Trim whitespace, optional quotes, UTF-8 BOM — common reasons the key looked "missing". */
 function normalizeApiKey(raw) {
   if (raw == null || raw === "") return "";
@@ -37,25 +32,22 @@ function normalizeApiKey(raw) {
 
 loadEnvFiles();
 
-// Either name works; the other stays undefined unless you set both in .env — that is normal.
 console.log(
-  `[chat-server] env vars present: CLAUDE_API_KEY=${Boolean(process.env.CLAUDE_API_KEY)} ANTHROPIC_API_KEY=${Boolean(process.env.ANTHROPIC_API_KEY)}`,
+  `[chat-server] env: DEEPSEEK_API_KEY=${Boolean(process.env.DEEPSEEK_API_KEY)}`,
 );
 
 const PORT = Number(process.env.PORT || 8787);
-const CLAUDE_API_KEY = normalizeApiKey(
-  process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY,
-);
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-3-5-sonnet-latest";
+const DEEPSEEK_API_KEY = normalizeApiKey(process.env.DEEPSEEK_API_KEY);
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
 
-if (!CLAUDE_API_KEY) {
+if (!DEEPSEEK_API_KEY) {
   console.warn(
     `[chat-server] No API key in env. Create ${path.join(PROJECT_ROOT, ".env")} with:\n` +
-      `  CLAUDE_API_KEY=sk-ant-api03-...\n` +
+      `  DEEPSEEK_API_KEY=sk-...\n` +
       `Use the exact name .env (not .env.txt). One line, no spaces around =.`,
   );
 } else {
-  console.log(`[chat-server] API key OK (${CLAUDE_API_KEY.length} chars).`);
+  console.log(`[chat-server] API key OK (${DEEPSEEK_API_KEY.length} chars).`);
 }
 const MAX_INPUT_CHARS = 500;
 
@@ -140,22 +132,23 @@ function parseModelJson(text) {
   }
 }
 
-async function askClaude(question, cardFront, cardBack) {
-  if (!CLAUDE_API_KEY) {
+const DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions";
+
+async function askDeepSeek(question, cardFront, cardBack) {
+  if (!DEEPSEEK_API_KEY) {
     throw new Error(
-      `Missing CLAUDE_API_KEY (or ANTHROPIC_API_KEY). Put the key in ${path.join(PROJECT_ROOT, ".env")} — see server startup logs.`,
+      `Missing DEEPSEEK_API_KEY. Put the key in ${path.join(PROJECT_ROOT, ".env")} — see server startup logs.`,
     );
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch(DEEPSEEK_CHAT_URL, {
     method: "POST",
     headers: {
-      "x-api-key": CLAUDE_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
+      Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: CLAUDE_MODEL,
+      model: DEEPSEEK_MODEL,
       max_tokens: 400,
       temperature: 0.2,
       messages: [
@@ -169,11 +162,11 @@ async function askClaude(question, cardFront, cardBack) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Claude API error (${response.status}): ${errorText}`);
+    throw new Error(`DeepSeek API error (${response.status}): ${errorText}`);
   }
 
   const data = await response.json();
-  const text = data?.content?.[0]?.text?.trim() || "";
+  const text = String(data?.choices?.[0]?.message?.content ?? "").trim();
   console.log("RAW MODEL OUTPUT:", text);
   console.log({ question, cardFront, cardBack });
   const parsed = parseModelJson(text);
@@ -275,7 +268,7 @@ const server = createServer(async (req, res) => {
         return sendJson(res, 200, { answer: BASE_REFUSAL });
       }
 
-      const result = await askClaude(question, cardFront, cardBack);
+      const result = await askDeepSeek(question, cardFront, cardBack);
 
       return sendJson(res, 200, { answer: result.answer });
     } catch (error) {
