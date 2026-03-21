@@ -19,6 +19,8 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const STORAGE_KEY = "axon-study-schedules-v1";
 
@@ -158,77 +160,58 @@ function saveSchedules(list: StudyScheduleRecord[]) {
   }
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function sanitizePdfFilename(schedule: StudyScheduleRecord): string {
+  const raw =
+    schedule.name.trim() ||
+    `axon-schedule-${schedule.targetDateIso}-${schedule.totalCards}-cards`;
+  const safe = raw.replace(/[/\\?%*:|"<>#\s]+/g, "-").replace(/-+/g, "-").slice(0, 80);
+  return `${safe || "axon-study-plan"}.pdf`;
 }
 
-function openPrintableSchedule(schedule: StudyScheduleRecord) {
+function downloadSchedulePdf(schedule: StudyScheduleRecord) {
   const stats = planStats(schedule.days, schedule.totalCards);
-  const rows = schedule.days
-    .map(
-      (d) =>
-        `<tr>
-          <td>${d.day}</td>
-          <td>${escapeHtml(d.dateLabel)}</td>
-          <td>${d.startCard}–${d.endCard}</td>
-          <td>${d.cardsToStudy}</td>
-          <td>${d.completed ? "Done" : "—"}</td>
-        </tr>`
-    )
-    .join("");
+  const doc = new jsPDF();
+  const margin = 14;
+  let y = 18;
 
-  const w = window.open("", "_blank");
-  if (!w) return;
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("AXON - Study plan", margin, y);
+  y += 10;
 
-  const title = schedule.name.trim()
-    ? `${schedule.name.trim()} · ${schedule.totalCards} cards`
-    : `Study schedule · ${schedule.totalCards} cards by ${schedule.targetDateIso}`;
-  w.document.write(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <title>${escapeHtml(title)}</title>
-  <style>
-    body { font-family: system-ui, sans-serif; padding: 24px; color: #111; }
-    h1 { font-size: 1.25rem; margin-bottom: 8px; }
-    .meta { font-size: 0.875rem; color: #444; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
-    th { background: #f4f4f5; }
-    @media print { body { padding: 12px; } }
-  </style>
-</head>
-<body>
-  <h1>AXON — Study plan</h1>
-  <div class="meta">
-    ${
-      schedule.name.trim()
-        ? `<div><strong>Name:</strong> ${escapeHtml(schedule.name.trim())}</div>`
-        : ""
-    }
-    <div><strong>Total cards:</strong> ${schedule.totalCards}</div>
-    <div><strong>Target date:</strong> ${escapeHtml(schedule.targetDateIso)}</div>
-    <div><strong>Study days:</strong> ${stats.studyDays}</div>
-    <div><strong>Avg cards / day:</strong> ${stats.avgPerDay}</div>
-    <div><strong>Daily range:</strong> ${stats.minDay}–${stats.maxDay} cards</div>
-    <div><strong>Range:</strong> ${escapeHtml(stats.firstLabel)} → ${escapeHtml(stats.lastLabel)}</div>
-  </div>
-  <table>
-    <thead><tr><th>Day</th><th>Date</th><th>Card range</th><th>Count</th><th>Done</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <p style="margin-top:16px;font-size:12px;color:#666;">Use your browser print dialog and choose &quot;Save as PDF&quot; if you want a PDF file.</p>
-</body>
-</html>`);
-  w.document.close();
-  w.focus();
-  requestAnimationFrame(() => {
-    w.print();
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const meta: string[] = [];
+  if (schedule.name.trim()) meta.push(`Name: ${schedule.name.trim()}`);
+  meta.push(`Total cards: ${schedule.totalCards}`);
+  meta.push(`Target date: ${schedule.targetDateIso}`);
+  meta.push(`Study days: ${stats.studyDays}`);
+  meta.push(`Avg cards / day: ${stats.avgPerDay}`);
+  meta.push(`Daily range: ${stats.minDay}-${stats.maxDay} cards`);
+  meta.push(`Calendar span: ${stats.firstLabel} -> ${stats.lastLabel}`);
+
+  meta.forEach((line) => {
+    doc.text(line, margin, y);
+    y += 5.5;
   });
+
+  autoTable(doc, {
+    startY: y + 6,
+    head: [["Day", "Date", "Card range", "Count", "Done"]],
+    body: schedule.days.map((d) => [
+      String(d.day),
+      d.dateLabel,
+      `${d.startCard}-${d.endCard}`,
+      String(d.cardsToStudy),
+      d.completed ? "Yes" : "-",
+    ]),
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [37, 99, 235] },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: margin, right: margin },
+  });
+
+  doc.save(sanitizePdfFilename(schedule));
 }
 
 export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
@@ -282,6 +265,8 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
 
     setSchedules((prev) => [record, ...prev]);
     setScheduleName("");
+    setTotalCardsInput("");
+    setTargetDate("");
   }, [totalCardsInput, targetDate, scheduleName]);
 
   const updateScheduleName = useCallback((id: string, name: string) => {
@@ -301,7 +286,7 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
 
   const savePdf = useCallback((schedule: StudyScheduleRecord, e: MouseEvent) => {
     e.stopPropagation();
-    openPrintableSchedule(schedule);
+    downloadSchedulePdf(schedule);
   }, []);
 
   const toggleDayComplete = useCallback((scheduleId: string, dayNumber: number) => {
@@ -434,7 +419,7 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
                         size="sm"
                         className="h-8"
                         onClick={(e) => savePdf(schedule, e)}
-                        title="Save as PDF (opens print — choose Save as PDF)"
+                        title="Download schedule as a PDF file"
                       >
                         <FileDown className="w-4 h-4 sm:mr-1" />
                         <span className="hidden sm:inline">PDF</span>
