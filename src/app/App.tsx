@@ -180,10 +180,11 @@ export default function App() {
   };
 
   const handlePracticeAnswerResult = (payload: { sourceCardId?: string; correct: boolean }) => {
-    if (payload.correct || !payload.sourceCardId) return;
+    const cardId = payload.sourceCardId;
+    if (payload.correct || !cardId) return;
     setWrongAnswerCount((prev) => ({
       ...prev,
-      [payload.sourceCardId]: (prev[payload.sourceCardId] ?? 0) + 1,
+      [cardId]: (prev[cardId] ?? 0) + 1,
     }));
   };
 
@@ -567,7 +568,7 @@ export default function App() {
 
           {/* Schedule Tab */}
           <TabsContent value="schedule" className="space-y-6">
-            <SchedulePlanner totalCards={ankiCards.length} />
+            <SchedulePlanner suggestedTotalCards={ankiCards.length} />
           </TabsContent>
         </Tabs>
       </main>
