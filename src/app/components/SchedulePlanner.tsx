@@ -34,6 +34,8 @@ export interface ScheduleDay {
 
 export interface StudyScheduleRecord {
   id: string;
+  /** User-visible label for this plan */
+  name: string;
   totalCards: number;
   targetDateIso: string;
   days: ScheduleDay[];
@@ -131,13 +133,18 @@ function loadSchedules(): StudyScheduleRecord[] {
     if (!raw) return [];
     const data = JSON.parse(raw) as unknown;
     if (!Array.isArray(data)) return [];
-    return data.filter(
-      (s): s is StudyScheduleRecord =>
-        typeof s === "object" &&
-        s !== null &&
-        typeof (s as StudyScheduleRecord).id === "string" &&
-        Array.isArray((s as StudyScheduleRecord).days)
-    );
+    return data
+      .filter(
+        (s): s is StudyScheduleRecord =>
+          typeof s === "object" &&
+          s !== null &&
+          typeof (s as StudyScheduleRecord).id === "string" &&
+          Array.isArray((s as StudyScheduleRecord).days)
+      )
+      .map((s) => ({
+        ...s,
+        name: typeof s.name === "string" ? s.name : "",
+      }));
   } catch {
     return [];
   }
@@ -177,7 +184,9 @@ function openPrintableSchedule(schedule: StudyScheduleRecord) {
   const w = window.open("", "_blank");
   if (!w) return;
 
-  const title = `Study schedule · ${schedule.totalCards} cards by ${schedule.targetDateIso}`;
+  const title = schedule.name.trim()
+    ? `${schedule.name.trim()} · ${schedule.totalCards} cards`
+    : `Study schedule · ${schedule.totalCards} cards by ${schedule.targetDateIso}`;
   w.document.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -196,6 +205,11 @@ function openPrintableSchedule(schedule: StudyScheduleRecord) {
 <body>
   <h1>AXON — Study plan</h1>
   <div class="meta">
+    ${
+      schedule.name.trim()
+        ? `<div><strong>Name:</strong> ${escapeHtml(schedule.name.trim())}</div>`
+        : ""
+    }
     <div><strong>Total cards:</strong> ${schedule.totalCards}</div>
     <div><strong>Target date:</strong> ${escapeHtml(schedule.targetDateIso)}</div>
     <div><strong>Study days:</strong> ${stats.studyDays}</div>
@@ -223,6 +237,7 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
     () => (suggestedTotalCards != null && suggestedTotalCards > 0 ? String(suggestedTotalCards) : "")
   );
   const [targetDate, setTargetDate] = useState("");
+  const [scheduleName, setScheduleName] = useState("");
 
   useEffect(() => {
     saveSchedules(schedules);
@@ -257,6 +272,7 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
 
     const record: StudyScheduleRecord = {
       id: crypto.randomUUID(),
+      name: scheduleName.trim(),
       totalCards,
       targetDateIso: targetDate,
       days,
@@ -265,7 +281,12 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
     };
 
     setSchedules((prev) => [record, ...prev]);
-  }, [totalCardsInput, targetDate]);
+    setScheduleName("");
+  }, [totalCardsInput, targetDate, scheduleName]);
+
+  const updateScheduleName = useCallback((id: string, name: string) => {
+    setSchedules((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
+  }, []);
 
   const toggleExpanded = useCallback((id: string) => {
     setSchedules((prev) =>
@@ -310,6 +331,16 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="schedule-name">Schedule name (optional)</Label>
+            <Input
+              id="schedule-name"
+              type="text"
+              placeholder="e.g. Step 1 cardio deck"
+              value={scheduleName}
+              onChange={(e) => setScheduleName(e.target.value)}
+            />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="schedule-total-cards">Total cards to review</Label>
@@ -356,6 +387,9 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
           {schedules.map((schedule) => {
             const stats = planStats(schedule.days, schedule.totalCards);
             const doneCount = schedule.days.filter((d) => d.completed).length;
+            const heading =
+              schedule.name.trim() ||
+              `${schedule.totalCards} cards by ${schedule.targetDateIso}`;
 
             return (
               <Card key={schedule.id} className="overflow-hidden border-gray-200 shadow-sm">
@@ -381,9 +415,12 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
                       )}
                       <div className="min-w-0">
                         <CardTitle className="text-base sm:text-lg leading-snug">
-                          {schedule.totalCards} cards by {schedule.targetDateIso}
+                          {heading}
                         </CardTitle>
                         <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                          {schedule.name.trim()
+                            ? `${schedule.totalCards} cards · due ${schedule.targetDateIso} · `
+                            : null}
                           {stats.studyDays} study days · ~{stats.avgPerDay} cards/day · range{" "}
                           {stats.minDay}–{stats.maxDay}/day · {doneCount}/{schedule.days.length} days
                           checked
@@ -418,6 +455,16 @@ export function SchedulePlanner({ suggestedTotalCards }: SchedulePlannerProps) {
 
                 {schedule.expanded && (
                   <CardContent className="space-y-6 pt-2">
+                    <div className="space-y-2 max-w-md">
+                      <Label htmlFor={`schedule-name-${schedule.id}`}>Schedule name</Label>
+                      <Input
+                        id={`schedule-name-${schedule.id}`}
+                        type="text"
+                        placeholder="Name this schedule"
+                        value={schedule.name}
+                        onChange={(e) => updateScheduleName(schedule.id, e.target.value)}
+                      />
+                    </div>
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="font-semibold text-sm text-blue-900 mb-3">Study plan overview</div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">

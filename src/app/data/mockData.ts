@@ -329,6 +329,37 @@ export const generatePracticeQuestions = (cardId: string, cardContent: string): 
   return base.map((q) => ({ ...q, sourceCardId: cardId }));
 };
 
+/**
+ * Returns one additional MCQ for the same card after a wrong answer.
+ * Prefers questions not already in the session; if all are used, clones one with a new id.
+ */
+export function nextPracticeQuestionOnWrong(
+  cardId: string,
+  cardContent: string,
+  practiceQuestionsByCard: Record<string, PracticeQuestion[]> | undefined,
+  excludeIds: ReadonlySet<string>
+): PracticeQuestion | null {
+  const fromApi = practiceQuestionsByCard?.[cardId];
+  const pool =
+    fromApi && fromApi.length > 0
+      ? fromApi.map((q) => ({ ...q, sourceCardId: q.sourceCardId ?? cardId }))
+      : generatePracticeQuestions(cardId, cardContent);
+
+  const unused = pool.filter((q) => !excludeIds.has(q.id));
+  if (unused.length > 0) {
+    const pick = unused[Math.floor(Math.random() * unused.length)]!;
+    return { ...pick, sourceCardId: pick.sourceCardId ?? cardId };
+  }
+
+  const base = pool[Math.floor(Math.random() * pool.length)] ?? pool[0];
+  if (!base) return null;
+  return {
+    ...base,
+    id: `${base.id}-retry-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    sourceCardId: base.sourceCardId ?? cardId,
+  };
+}
+
 export interface AnatomyModel {
   id: string;
   name: string;

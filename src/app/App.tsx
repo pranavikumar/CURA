@@ -18,6 +18,7 @@ import {
   MOCK_DISEASES,
   ANATOMY_MODELS,
   generatePracticeQuestions,
+  nextPracticeQuestionOnWrong,
   type PracticeQuestion,
   type DrugInfo,
   type DiseaseInfo,
@@ -186,6 +187,21 @@ export default function App() {
       ...prev,
       [cardId]: (prev[cardId] ?? 0) + 1,
     }));
+  };
+
+  const handlePracticeWrongAppend = (payload: { sourceCardId?: string; excludeIds: string[] }) => {
+    const cardId = payload.sourceCardId;
+    if (!cardId) return;
+    const card = ankiCards.find((c) => c.id === cardId);
+    if (!card) return;
+    const extra = nextPracticeQuestionOnWrong(
+      card.id,
+      `${card.front} ${card.back}`,
+      practiceQuestionsByCard,
+      new Set(payload.excludeIds)
+    );
+    if (!extra) return;
+    setPracticeQuestions((prev) => [...prev, extra]);
   };
 
   // Determine which anatomy model to show based on card content
@@ -562,6 +578,7 @@ export default function App() {
               <PracticeQuestions
                 questions={practiceQuestions}
                 onAnswerResult={handlePracticeAnswerResult}
+                onWrongAnswerAppend={handlePracticeWrongAppend}
               />
             )}
           </TabsContent>
