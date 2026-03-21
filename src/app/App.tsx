@@ -25,6 +25,15 @@ import {
 } from "./data/mockData";
 import { fetchStudyData } from "./data/studyApi";
 
+function shuffleArray<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export default function App() {
   const [ankiCards, setAnkiCards] = useState(SAMPLE_ANKI_CARDS);
   const [drugs, setDrugs] = useState(MOCK_DRUGS);
@@ -36,6 +45,7 @@ export default function App() {
   const [selectedDrug, setSelectedDrug] = useState<DrugInfo | undefined>();
   const [selectedDisease, setSelectedDisease] = useState<DiseaseInfo | undefined>();
   const [wrongAnswerCount, setWrongAnswerCount] = useState<Record<string, number>>({});
+  const [practiceSessionNote, setPracticeSessionNote] = useState<string | null>(null);
   const [showSidebarSettings, setShowSidebarSettings] = useState(false);
   const [isLoadingDynamicData, setIsLoadingDynamicData] = useState(false);
   const [dynamicDataError, setDynamicDataError] = useState<string | null>(null);
@@ -96,11 +106,13 @@ export default function App() {
 
     // Generate practice questions after 2 wrong answers
     if (newCount >= 2) {
-      const questions =
+      const raw =
         practiceQuestionsByCard[cardId] && practiceQuestionsByCard[cardId].length > 0
           ? practiceQuestionsByCard[cardId]
           : generatePracticeQuestions(cardId, currentCard.front + " " + currentCard.back);
-      setPracticeQuestions(questions);
+      setPracticeQuestions(
+        raw.map((q) => ({ ...q, sourceCardId: q.sourceCardId ?? cardId }))
+      );
     }
 
     // Move to next card
@@ -129,16 +141,50 @@ export default function App() {
   };
 
   const handleGenerateQuestions = () => {
-    // Generate practice questions for all cards
-    const allQuestions: PracticeQuestion[] = [];
-    ankiCards.forEach((card) => {
-      const questions =
+    const weakCardIds = ankiCards
+      .map((c) => c.id)
+      .filter((id) => (wrongAnswerCount[id] ?? 0) > 0)
+      .sort((a, b) => (wrongAnswerCount[b] ?? 0) - (wrongAnswerCount[a] ?? 0));
+
+    const cardsToQuiz =
+      weakCardIds.length > 0
+        ? weakCardIds
+            .map((id) => ankiCards.find((c) => c.id === id))
+            .filter((c): c is (typeof ankiCards)[number] => Boolean(c))
+        : ankiCards;
+
+    setPracticeSessionNote(
+      weakCardIds.length > 0
+        ? "These multiple-choice questions focus on flashcards you've marked Again or missed in practice (weakest areas first)."
+        : "No weak spots tracked yet - using all cards. Press Again while studying or miss a practice question to personalize the next set."
+    );
+
+    const collected: PracticeQuestion[] = [];
+    const seenIds = new Set<string>();
+
+    for (const card of cardsToQuiz) {
+      const raw =
         practiceQuestionsByCard[card.id] && practiceQuestionsByCard[card.id].length > 0
           ? practiceQuestionsByCard[card.id]
-          : generatePracticeQuestions(card.id, card.front + " " + card.back);
-      allQuestions.push(...questions);
-    });
-    setPracticeQuestions(allQuestions);
+          : generatePracticeQuestions(card.id, `${card.front} ${card.back}`);
+
+      for (const q of raw) {
+        const withSource: PracticeQuestion = { ...q, sourceCardId: q.sourceCardId ?? card.id };
+        if (seenIds.has(withSource.id)) continue;
+        seenIds.add(withSource.id);
+        collected.push(withSource);
+      }
+    }
+
+    setPracticeQuestions(shuffleArray(collected));
+  };
+
+  const handlePracticeAnswerResult = (payload: { sourceCardId?: string; correct: boolean }) => {
+    if (payload.correct || !payload.sourceCardId) return;
+    setWrongAnswerCount((prev) => ({
+      ...prev,
+      [payload.sourceCardId]: (prev[payload.sourceCardId] ?? 0) + 1,
+    }));
   };
 
   // Determine which anatomy model to show based on card content
@@ -477,8 +523,11 @@ export default function App() {
                       Adaptive Practice Questions
                     </CardTitle>
                     <p className="text-sm text-gray-600 mt-1">
-                      Test your knowledge with AI-generated practice questions based on your flashcards
+                      Multiple-choice quiz: submit to see if you're right, the correct answer, and an explanation. New sets prioritize topics you've missed.
                     </p>
+                    {practiceSessionNote && practiceQuestions.length > 0 && (
+                      <p className="text-xs text-purple-700 mt-2 max-w-xl">{practiceSessionNote}</p>
+                    )}
                   </div>
                   <Button 
                     onClick={handleGenerateQuestions}
@@ -509,7 +558,10 @@ export default function App() {
                 </CardContent>
               </Card>
             ) : (
-              <PracticeQuestions questions={practiceQuestions} />
+              <PracticeQuestions
+                questions={practiceQuestions}
+                onAnswerResult={handlePracticeAnswerResult}
+              />
             )}
           </TabsContent>
 

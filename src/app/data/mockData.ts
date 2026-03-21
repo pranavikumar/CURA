@@ -34,6 +34,8 @@ export interface PracticeQuestion {
   options: string[];
   correctAnswer: number;
   explanation: string;
+  /** Flashcard this question was generated from (weak-area targeting). */
+  sourceCardId?: string;
 }
 
 export const MOCK_DRUGS: Record<string, DrugInfo> = {
@@ -323,7 +325,8 @@ export const generatePracticeQuestions = (cardId: string, cardContent: string): 
     ]
   };
 
-  return questions[cardId] || questions.card1;
+  const base = questions[cardId] || questions.card1;
+  return base.map((q) => ({ ...q, sourceCardId: cardId }));
 };
 
 export interface AnatomyModel {

@@ -7,9 +7,10 @@ import type { PracticeQuestion } from "../data/mockData";
 
 interface PracticeQuestionsProps {
   questions: PracticeQuestion[];
+  onAnswerResult?: (payload: { sourceCardId?: string; correct: boolean }) => void;
 }
 
-export function PracticeQuestions({ questions }: PracticeQuestionsProps) {
+export function PracticeQuestions({ questions, onAnswerResult }: PracticeQuestionsProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -24,12 +25,17 @@ export function PracticeQuestions({ questions }: PracticeQuestionsProps) {
 
   const handleSubmit = () => {
     if (selectedAnswer === null) return;
-    
+
+    const correct = selectedAnswer === currentQuestion.correctAnswer;
     setShowExplanation(true);
-    setScore(prev => ({
-      correct: prev.correct + (selectedAnswer === currentQuestion.correctAnswer ? 1 : 0),
-      total: prev.total + 1
+    setScore((prev) => ({
+      correct: prev.correct + (correct ? 1 : 0),
+      total: prev.total + 1,
     }));
+    onAnswerResult?.({
+      sourceCardId: currentQuestion.sourceCardId,
+      correct,
+    });
   };
 
   const handleNext = () => {
@@ -127,9 +133,30 @@ export function PracticeQuestions({ questions }: PracticeQuestionsProps) {
           })}
 
           {showExplanation && (
-            <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
-              <h4 className="font-semibold text-sm mb-2">Explanation:</h4>
-              <p className="text-sm text-gray-700">{currentQuestion.explanation}</p>
+            <div className="mt-4 space-y-3">
+              {selectedAnswer === currentQuestion.correctAnswer ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-900">
+                  <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                  <span className="font-semibold text-sm">Correct — nice work.</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-900">
+                  <XCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="font-semibold text-sm">Incorrect — review the correct answer below.</span>
+                </div>
+              )}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                  Correct answer
+                </p>
+                <p className="text-sm text-slate-900">
+                  {currentQuestion.options[currentQuestion.correctAnswer]}
+                </p>
+              </div>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+                <h4 className="font-semibold text-sm mb-2">Explanation</h4>
+                <p className="text-sm text-gray-700">{currentQuestion.explanation}</p>
+              </div>
             </div>
           )}
 
