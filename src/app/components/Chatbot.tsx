@@ -22,7 +22,7 @@ export function Chatbot({ currentCard }: ChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      text: "Hi! I'm your AXON study assistant. Ask me anything about the current flashcard!",
+      text: "Hi! I'm your CURA study assistant. Ask me anything about the current flashcard!",
       sender: "bot",
       timestamp: new Date(),
     },
@@ -150,7 +150,7 @@ export function Chatbot({ currentCard }: ChatbotProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Bot className="w-5 h-5" />
-                  <CardTitle className="text-base">AXON Study Assistant</CardTitle>
+                  <CardTitle className="text-base">CURA Study Assistant</CardTitle>
                 </div>
                 <Button
                   variant="ghost"

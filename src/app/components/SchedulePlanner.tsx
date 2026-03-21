@@ -165,7 +165,7 @@ function sanitizePdfFilename(schedule: StudyScheduleRecord): string {
     schedule.name.trim() ||
     `axon-schedule-${schedule.targetDateIso}-${schedule.totalCards}-cards`;
   const safe = raw.replace(/[/\\?%*:|"<>#\s]+/g, "-").replace(/-+/g, "-").slice(0, 80);
-  return `${safe || "axon-study-plan"}.pdf`;
+  return `${safe || "cura-study-plan"}.pdf`;
 }
 
 function downloadSchedulePdf(schedule: StudyScheduleRecord) {
@@ -176,7 +176,7 @@ function downloadSchedulePdf(schedule: StudyScheduleRecord) {
 
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("AXON - Study plan", margin, y);
+  doc.text("CURA - Study plan", margin, y);
   y += 10;
 
   doc.setFontSize(10);

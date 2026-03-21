@@ -268,9 +268,8 @@ export default function App() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  AXON
+                  CURA
                 </h1>
-                <p className="text-xs text-gray-500">Adaptive eXperience for Optimized Navigation</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -598,7 +597,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-sm text-gray-600">
-              <span className="font-semibold">AXON</span> - Built for medical students, by medical students
+              <span className="font-semibold">CURA</span> - Built for medical students
             </div>
             <div className="flex gap-4 text-sm text-gray-600">
               <Badge variant="secondary">OpenFDA API</Badge>
