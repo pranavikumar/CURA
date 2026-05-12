@@ -4,7 +4,7 @@
 
 CURA is a React application built to address a specific pain point in medical education: students using Anki flashcards constantly switch between tabs, textbooks, and YouTube to understand the drug, anatomy, or clinical concept being tested on a single card. CURA pulls that supplemental context into the study session itself, alongside adaptive practice questions, personalized study schedules, and an AI study assistant.
 
-Built at a hackathon after consulting medical professionals who had recently completed med school about the pain points they experienced while studying. Originally prototyped under the working name "AXON" before being renamed CURA.
+Built at a hackathon (PiHacks) after consulting medical professionals who had recently completed med school about the pain points they experienced while studying. Originally prototyped under the working name "AXON" before being renamed CURA.
 
 ## Features
 
@@ -14,7 +14,7 @@ Enhanced flashcard study sessions with a customizable sidebar that surfaces cont
 
 - **Card Overview** — definitions and explanations of key concepts on the current flashcard
 - **Drugs** — pharmacological details (Generic Name, Mechanism of Action, Indications, Contraindications, Adverse Effects, Dosage, Drug Interactions) for any drug referenced
-- **Anatomy** — interactive 3D anatomical models built with React Three Fiber; users can rotate and explore structures
+- **Anatomy** — interactive anatomical diagrams; users can rotate and explore structures
 - **Clinical Relevance** — explains why a structure or concept matters in real-world practice
 
 Users rate confidence as Easy / Medium / Hard after each card to guide spaced repetition, and can toggle which sidebar panels are visible.
@@ -74,11 +74,3 @@ The repo includes both a Vite frontend and a small Node backend that proxies cha
 - Expanded anatomy library with more body systems
 - Collaborative study features (shared schedules, group quizzes)
 - Content packs targeting USMLE Step 1 and Step 2
-
-## Team
-
-[Add your teammates here]
-
-## Acknowledgments
-
-Built at [hackathon name] in [month, year]. Thanks to the medical students and recent graduates who shared their study workflows and pain points to inform CURA's design.
