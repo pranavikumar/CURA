@@ -1,3 +1,5 @@
+# DEVPOST LINK: https://devpost.com/software/cura-u2pod7
+
 # CURA
 
 **AI-powered medical study platform that brings clinical context to spaced-repetition flashcards.**
